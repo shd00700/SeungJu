@@ -4,7 +4,6 @@ import (
         "fmt"
         "github.com/stianeikeland/go-rpio"
         "github.com/tarm/serial"
-        //"github.com/goburrow/serial"
         "time"
         "os"
         "log"
@@ -43,20 +42,12 @@ func pintoggle(){
         rs485B.Toggle()
         rs485C.Toggle()
 }
-//func time12(){
-        //time1 := time.NewTimer(time.Second *2)
-        //time.Sleep(time.Second)
-        //stop1 := time1.Stop()
-//}
 func LedToggle(){
-        //t := time.NewTimer(time.Millisecond)
 
         for{    //GPIO LED Toggle
                 pintoggle()
                 time.Sleep(time.Second)
         }
-        //t.Stop(time.Millisecond)
-        //t.Reset(time.Millisecond)
 }
 
 func Rs485(){
