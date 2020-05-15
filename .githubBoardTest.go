@@ -114,12 +114,7 @@ func handleRequest(conn net.Conn) {
         }
 }
 func main() {
-        //gpio pin setting
-        //Ethernet TCP setting
-        //Board Test
-        //Led start
-        //Rs485 start
-        //Ethernet
+       
         var wg sync.WaitGroup
 
         log.Println("start led toggle")
