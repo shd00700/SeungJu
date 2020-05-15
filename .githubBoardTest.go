@@ -10,6 +10,7 @@ import (
         "flag"
         "net"
         "strconv"
+        "sync"
 )
 const (
         gwState = rpio.Pin(17)
@@ -20,8 +21,7 @@ const (
         rs485C = rpio.Pin(24)
         wireless = rpio.Pin(25)
 )
-
-func pinset(){
+func LedTest(wg *sync.WaitGroup){
         if err := rpio.Open(); err!= nil{
                 fmt.Println(err)
                 os.Exit(1)
@@ -33,25 +33,20 @@ func pinset(){
         rs485B.Output()
         rs485C.Output()
         wireless.Output()
-}
-func pintoggle(){
-        gwState.Toggle()
-        lan9514.Toggle()
-        lan9512.Toggle()
-        rs485A.Toggle()
-        rs485B.Toggle()
-        rs485C.Toggle()
-}
-func LedToggle(){
 
         for{    //GPIO LED Toggle
-                pintoggle()
-                time.Sleep(time.Second)
+                gwState.Toggle()
+                lan9514.Toggle()
+                lan9512.Toggle()
+                rs485A.Toggle()
+                rs485B.Toggle()
+                rs485C.Toggle()
+                wireless.Toggle()
+	    time.Sleep(time.Second)
         }
 }
-
-func Rs485(){
-        rs485a := &serial.Config{Name: "/dev/ttyUSB0", Baud: 9600, StopBits: 1, Parity: 'N'}
+func SerialTest(wg *sync.WaitGroup){
+        rs485a:= &serial.Config{Name: "/dev/ttyUSB0", Baud: 9600, StopBits: 1, Parity: 'N'}
         rs485b := &serial.Config{Name: "/dev/ttyUSB1", Baud: 9600, StopBits: 1, Parity: 'N'}
         rs485c := &serial.Config{Name: "/dev/ttyUSB3", Baud: 9600, StopBits: 1, Parity: 'N'}
 
@@ -83,39 +78,8 @@ func Rs485(){
                 }
         }
 }
-
-func handleRequest(conn net.Conn) {
-        log.Println("Accepted new connection.")
-        for{
-                buf := make([]byte, 1024)
-                size, err := conn.Read(buf)
-                if err != nil {
-                        return
-                }
-                data := buf[:size]
-                log.Println("Read new data from connection", data)
-                conn.Write(data)
-
-        }
-}
-func main() {
-        //gpio pin setting
-        pinset()
-        //serial Rs-485 setting
-        /*a, err := serial.OpenPort(rs485a)
-        if err != nil{
-                log.Fatal(err)
-        }
-        b, err := serial.OpenPort(rs485b)
-        if err != nil{
-                log.Fatal(err)
-        }
-        c, err := serial.OpenPort(rs485c)
-        if err != nil{
-                log.Fatal(err)
-        }*/
-        //Ethernet TCP setting
-        port := flag.Int("port", 3322, "Port to accept connections on.")
+func EthernetTest(wg *sync.WaitGroup){
+        port := flag.Int("port", 3337, "Port to accept connections on.")
         flag.Parse()
 
         l, err := net.Listen("tcp",":"+strconv.Itoa(*port))
@@ -124,18 +88,52 @@ func main() {
         }
         log.Println("Listening to connections at on port", strconv.Itoa(*port))
         fmt.Println(l)
-        //Board Test
-                //Ethernet TCP
+        defer l.Close()
+
         for{
-                fmt.Println("ee")
                 conn, err := l.Accept()
                 if err != nil {
                         log.Panicln(err)
                 }
-                //Led start
-                go LedToggle()
-                //Rs485 start
-                go Rs485()
-                go handleRequest(conn)
+                handleRequest(conn)
         }
+}
+func handleRequest(conn net.Conn) {
+        log.Println("Accepted new connection.")
+
+        for{
+                buf := make([]byte, 1024)
+                size, err := conn.Read(buf)
+                if err != nil {
+                        return
+                }
+	    data := buf[:size]
+                log.Println("Read new data from connection", data)
+                conn.Write(data)
+
+        }
+}
+func main() {
+        //gpio pin setting
+        //Ethernet TCP setting
+        //Board Test
+        //Led start
+        //Rs485 start
+        //Ethernet
+        var wg sync.WaitGroup
+
+        log.Println("start led toggle")
+        wg.Add(1)
+        go LedTest(&wg)
+
+        log.Println("start Serial server")
+        wg.Add(2)
+         go SerialTest(&wg)
+
+        log.Println("start tcp server")
+        wg.Add(3)
+        go EthernetTest(&wg)
+
+
+        wg.Wait()
 }
